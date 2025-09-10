@@ -117,9 +117,10 @@ Your progress is tracked in `stats.json`:
 
 ## 📋 Credits
 
-All code, design, and concept art by **Tonmoy KS**.  
+All code, design, and concept art by **Tonmoy KS**. Fork, contribute, or submit issues for new features and improvements and get your name here!
+
 Thank you for playing **Box Tapper: Evolution V.1.8.0**!
 
 ---
 
-**Fork, contribute, or submit issues for new features and improvements!**
+thanks for playing!
