@@ -51,7 +51,7 @@ Hidden cheat codes can be unlocked by entering specific tap sequences (mixing bo
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/Tonmoy-KS/Box-Tapper-Evo.git
+   git clone https://github.com/Tonmoy-KS/Box-Tapper-Evo/Box-Tapper-Evo.git
    cd Box-Tapper-Evo
    ```
 2. Make sure Pygame is installed:
