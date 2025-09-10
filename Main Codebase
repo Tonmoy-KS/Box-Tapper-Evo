@@ -3,6 +3,7 @@ import random
 import math
 import os
 import time
+import json
 
 
 # SETTINGS & CONSTANTS
@@ -18,6 +19,8 @@ BLACK = (0, 0, 0)
 GRAY = (150, 150, 150)
 DARK_GRAY = (50, 50, 50)
 RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 GOLD = (255, 215, 0)
 NEBULA_BLUE = (50, 50, 200)
@@ -26,6 +29,8 @@ GALAXY_INDIGO = (75, 0, 130)
 STARLIGHT_CYAN = (100, 200, 255)
 COSMIC_MAGENTA = (200, 50, 200)
 AURORA_GREEN = (50, 200, 150)
+SLIME_GREEN = (124, 252, 0)
+DEEP_PURPLE = (66, 30, 93)
 
 # --- Terminal Color Codes ---
 XTERM_BLUE = "\033[94m"
@@ -39,27 +44,19 @@ MAX_HIGH_SCORES = 5
 MAX_LEVEL = 100
 ASTEROID_START_LEVEL = 30
 
-# --- Cheats ---
-CHEAT_SEQUENCES = {
-    "INVINCIBILITY": ["hit_box", "hit_empty", "hit_box", "hit_box", "hit_empty", "hit_empty", "hit_box", "hit_box", "hit_empty"],
-    "INSTANT_KILL": ["hit_box", "hit_box", "hit_empty", "hit_empty", "hit_box", "hit_box", "hit_box", "hit_empty", "hit_empty", "hit_box"],
-    "DOUBLE_SCORE": ["hit_empty", "hit_box", "hit_empty", "hit_empty", "hit_box"],
-    "LEVEL_SKIP": ["hit_empty", "hit_empty", "hit_box", "hit_box", "hit_empty", "hit_box", "hit_box"],
-    "HUD_TOGGLE": ["hit_empty", "hit_empty", "hit_box", "hit_box", "hit_empty", "hit_empty", "hit_empty", "hit_box", "hit_box", "hit_empty"],
-    "DEBUG_MODE": ["hit_box", "hit_empty", "hit_empty", "hit_box", "hit_empty","hit_box", "hit_empty", "hit_empty", "hit_box", "hit_empty"]
-}
-
 
 # INITIALIZATION
 pygame.init()
 os.environ['SDL_VIDEO_CENTERED'] = '1'
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
-pygame.display.set_caption("Box Tapper: Evolution V.1.4.0")
+pygame.display.set_caption("Box Tapper: Evolution (Stub-Free)")
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
 big_font = pygame.font.Font(None, 72)
 button_font = pygame.font.Font(None, 48)
 tutorial_font = pygame.font.Font(None, 42)
+small_font = pygame.font.Font(None, 24)
+
 
 # --- Difficulty Settings ---
 DIFFICULTY_SETTINGS = {
@@ -76,29 +73,19 @@ DIFFICULTY_SETTINGS = {
 
 class Tool:
     """Represents a tapper tool with different abilities."""
-    def __init__(self, id, level, damage, score_multiplier, tap_tide_level, spiral_universal_level, is_dev):
-        self.id = id
-        self.level = level
-        self.damage = damage
-        self.score_multiplier = score_multiplier
-        self.tap_tide_level = tap_tide_level
-        self.spiral_universal_level = spiral_universal_level
-        self.is_dev = is_dev
+    def __init__(self, id, level, damage, score_multiplier, is_dev):
+        self.id, self.level, self.damage, self.score_multiplier, self.is_dev = id, level, damage, score_multiplier, is_dev
 
 class Star:
     """A twinkling star in the background."""
-    def __init__(self):
-        self.x = random.randint(0, WIDTH)
-        self.y = random.randint(0, HEIGHT)
-        self.radius = random.randint(1, 3)
-        self.color = WHITE
-        self.alpha = random.randint(50, 255)
-        self.fade_speed = random.uniform(0.5, 2.0)
+    def __init__(self, w, h):
+        self.x, self.y = random.randint(0, w), random.randint(0, h)
+        self.radius, self.color = random.randint(1, 3), WHITE
+        self.alpha, self.fade_speed = random.randint(50, 255), random.uniform(0.5, 2.0)
 
     def update(self):
         self.alpha += self.fade_speed
-        if self.alpha >= 255 or self.alpha <= 50:
-            self.fade_speed *= -1
+        if self.alpha >= 255 or self.alpha <= 50: self.fade_speed *= -1
         self.alpha = max(50, min(255, self.alpha))
 
     def draw(self, surface):
@@ -107,89 +94,43 @@ class Star:
         surface.blit(star_surf, (self.x - self.radius, self.y - self.radius))
 
 class Particle:
-    """A small particle for explosion effects."""
+    """A particle for explosion effects."""
     def __init__(self, x, y, color):
-        self.x = x
-        self.y = y
-        self.color = color
-        self.vx = random.uniform(-3, 3)
-        self.vy = random.uniform(-3, 3)
-        self.lifespan = random.randint(20, 40)
-        self.radius = random.randint(2, 5)
+        self.x, self.y, self.color = x, y, color
+        self.vx, self.vy = random.uniform(-3, 3), random.uniform(-3, 3)
+        self.lifespan, self.radius = random.randint(20, 40), random.randint(2, 5)
+        self.gravity = 0
+        if gs.get("chaotic_particles"):
+            self.vx, self.vy = random.uniform(-5, 5), random.uniform(-5, 5)
+            self.lifespan, self.radius = random.randint(30, 60), random.randint(3, 7)
+            self.gravity = 0.1
 
     def update(self):
-        self.x += self.vx
-        self.y += self.vy
-        self.lifespan -= 1
-        self.radius -= 0.1
+        self.x += self.vx; self.y += self.vy; self.vy += self.gravity
+        self.lifespan -= 1; self.radius -= 0.1
         return self.lifespan > 0 and self.radius > 0
 
     def draw(self, surface):
-        if self.radius > 0:
-            pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), int(self.radius))
+        if self.radius > 0: pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), int(self.radius))
 
 class Asteroid:
     """A moving hazard that the player must avoid clicking."""
-    def __init__(self):
+    def __init__(self, w, h):
+        self.w, self.h = w, h
         start_side = random.choice(['left', 'right', 'top', 'bottom'])
-        if start_side == 'left':
-            self.x, self.y = -20, random.randint(0, HEIGHT)
-            self.vx, self.vy = random.uniform(2, 4), random.uniform(-1, 1)
-        elif start_side == 'right':
-            self.x, self.y = WIDTH + 20, random.randint(0, HEIGHT)
-            self.vx, self.vy = random.uniform(-4, -2), random.uniform(-1, 1)
-        elif start_side == 'top':
-            self.x, self.y = random.randint(0, WIDTH), -20
-            self.vx, self.vy = random.uniform(-1, 1), random.uniform(2, 4)
-        else: # bottom
-            self.x, self.y = random.randint(0, WIDTH), HEIGHT + 20
-            self.vx, self.vy = random.uniform(-1, 1), random.uniform(-4, -2)
-
+        if start_side == 'left': self.x, self.y, self.vx, self.vy = -20, random.randint(0, h), random.uniform(2, 4), random.uniform(-1, 1)
+        elif start_side == 'right': self.x, self.y, self.vx, self.vy = w + 20, random.randint(0, h), random.uniform(-4, -2), random.uniform(-1, 1)
+        elif start_side == 'top': self.x, self.y, self.vx, self.vy = random.randint(0, w), -20, random.uniform(-1, 1), random.uniform(2, 4)
+        else: self.x, self.y, self.vx, self.vy = random.randint(0, w), h + 20, random.uniform(-1, 1), random.uniform(-4, -2)
         self.radius = random.randint(10, 25)
         self.rect = pygame.Rect(self.x-self.radius, self.y-self.radius, self.radius*2, self.radius*2)
 
     def move(self):
-        self.x += self.vx
-        self.y += self.vy
+        self.x += self.vx; self.y += self.vy
         self.rect.center = (self.x, self.y)
 
-    def is_offscreen(self):
-        return self.rect.right < 0 or self.rect.left > WIDTH or self.rect.bottom < 0 or self.rect.top > HEIGHT
-
-    def draw(self, surface):
-        pygame.draw.circle(surface, DARK_GRAY, self.rect.center, self.radius)
-        pygame.draw.circle(surface, GRAY, self.rect.center, self.radius, 2)
-
-class BlackHole:
-    """A power-up effect that pulls and destroys boxes."""
-    def __init__(self, x, y):
-        self.x, self.y = x, y
-        self.radius, self.max_radius, self.pull_radius = 10, 80, 300
-        self.pull_force, self.grow_speed, self.lifespan = 1.5, 0.5, 5
-        self.start_time = time.time()
-
-    def update(self, boxes):
-        if self.radius < self.max_radius:
-            self.radius += self.grow_speed
-        for box in boxes[:]:
-            dist_x, dist_y = self.x - box.rect.centerx, self.y - box.rect.centery
-            distance = math.hypot(dist_x, dist_y)
-            if distance < self.pull_radius:
-                if distance < self.radius:
-                    damage_box(box, is_black_hole=True, damage=999)
-                else:
-                    angle = math.atan2(dist_y, dist_x)
-                    box.rect.x += self.pull_force * math.cos(angle)
-                    box.rect.y += self.pull_force * math.sin(angle)
-        return time.time() - self.start_time < self.lifespan
-
-    def draw(self, surface):
-        pygame.draw.circle(surface, BLACK, (self.x, self.y), int(self.radius))
-        for i in range(3):
-            angle = (time.time() * (i+1) * 2) % (2 * math.pi)
-            p_radius = self.radius + 10 + i * 5
-            px, py = self.x + p_radius * math.cos(angle), self.y + p_radius * math.sin(angle)
-            pygame.draw.circle(surface, NEBULA_PURPLE, (int(px), int(py)), 3)
+    def is_offscreen(self): return self.rect.right < 0 or self.rect.left > self.w or self.rect.bottom < 0 or self.rect.top > self.h
+    def draw(self, surface): pygame.draw.circle(surface, DARK_GRAY, self.rect.center, self.radius); pygame.draw.circle(surface, GRAY, self.rect.center, self.radius, 2)
 
 class Box:
     """The main target object for the player to tap."""
@@ -202,47 +143,67 @@ class Box:
         self.tap_count, self.tap_timer, self.taps_required = 0, 0, 0
         self.is_shrinking, self.shrink_rate, self.min_size = False, 0.25, 20
         self.original_width, self.original_height = width, height
+        self.teleport_timer = 0
+        self.dramatic_death_timer = 0
+        self.dramatic_quote = ""
         self.assign_special_type()
 
     def assign_special_type(self):
         roll = random.random()
-        if roll < 0.02:
-            self.special_type, self.color, self.health, self.speed = "golden", GOLD, 3, 8
-        elif roll < 0.2:
-            special_roll = random.random()
-            if special_roll < 0.25: self.special_type = "explosive"
-            elif special_roll < 0.50: self.special_type = "regen"
-            elif special_roll < 0.75: self.special_type, self.is_shrinking = "shrinking", True
-            else: self.special_type, self.taps_required = "multi", min(1 + gs["level"] // 10, 5)
+        allowed_types = gs.get("allowed_special_boxes", [])
+        
+        if roll < 0.02: self.special_type, self.color, self.health, self.speed = "golden", GOLD, 3, 8
+        elif roll < 0.3 and allowed_types:
+            self.special_type = random.choice(allowed_types)
+            if self.special_type == "splitter": self.color = SLIME_GREEN
+            elif self.special_type == "dramatic": self.color = DEEP_PURPLE
+            elif self.special_type == "teleporter": self.color = COSMIC_MAGENTA
+            elif self.special_type == "shrinking": self.is_shrinking = True
+
+        elif random.random() < 0.1:
+            self.special_type, self.taps_required = "multi", min(1 + gs["level"] // 10, 5)
 
     def update(self):
+        w, h = pygame.display.get_surface().get_size()
         self.rect.x += self.speed * self.direction
-        if self.rect.left <= 0 or self.rect.right >= WIDTH: self.direction *= -1
-        if self.special_type == "ghost" and time.time() - self.fade_timer > 0.5:
-            self.alpha, self.fade_timer = (255 if self.alpha < 128 else 50), time.time()
-        if self.special_type == "regen" and self.health < self.max_health:
-            self.health = min(self.health + 0.5 / FPS, self.max_health)
-        if self.is_shrinking and self.rect.width > self.min_size:
-            center = self.rect.center
-            self.rect.width = max(self.min_size, self.rect.width - self.shrink_rate)
-            self.rect.height = max(self.min_size, self.rect.height - self.shrink_rate)
-            self.rect.center = center
+        if gs.get("gravity_reversed"): self.rect.y -= 2
+        
+        if self.rect.left <= 0 or self.rect.right >= w: self.direction *= -1
+        
+        if self.special_type == "teleporter" and time.time() - self.teleport_timer > 3:
+            self.rect.x, self.rect.y = random.randint(0, w - self.rect.width), random.randint(0, h - self.rect.height)
+            self.teleport_timer = time.time()
+            
+        if self.dramatic_death_timer > 0:
+            self.alpha = max(0, self.alpha - 4)
+            if self.alpha == 0: self.health = 0
 
     def draw(self, surface):
-        box_surf = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
-        box_surf.fill((*self.color, self.alpha))
+        visibility_alpha = self.alpha
+        if gs.get("stealth_mode_active"):
+            if time.time() - self.fade_timer > 0.1: self.alpha = 50
+            else: self.alpha = 255
+            visibility_alpha = self.alpha
+
+        box_surf = pygame.Surface(self.rect.size, pygame.SRCALPHA); box_surf.fill((*self.color, visibility_alpha))
         surface.blit(box_surf, self.rect.topleft)
+        
         if self.max_health > 1:
             health_ratio = self.health / self.max_health
-            health_bar_width = self.rect.width * health_ratio
-            pygame.draw.rect(surface, AURORA_GREEN, (self.rect.x, self.rect.y - 10, health_bar_width, 5))
-            pygame.draw.rect(surface, BLACK, (self.rect.x, self.rect.y - 10, self.rect.width, 5), 1)
-        if self.special_type == "multi":
-            taps_text = font.render(f"{self.tap_count}/{self.taps_required}", True, BLACK)
-            surface.blit(taps_text, taps_text.get_rect(center=self.rect.center))
+            pygame.draw.rect(surface, GREEN, (self.rect.x, self.rect.y - 10, self.rect.width * health_ratio, 5))
+            
+        if self.dramatic_death_timer > 0:
+            text_surf = small_font.render(self.dramatic_quote, True, WHITE)
+            surface.blit(text_surf, text_surf.get_rect(center=self.rect.center))
+
+    def start_dramatic_death(self):
+        self.dramatic_death_timer = time.time()
+        self.speed = 0
+        quotes = ["Et tu, Brute?", "I'm melting!", "My only regret...", "Tell my wife I love her.", "This is not in my contract!"]
+        self.dramatic_quote = random.choice(quotes)
+        self.color = GRAY
 
 class Boss(Box):
-    """A powerful enemy that appears every 5 levels."""
     def __init__(self, x, y, width, height, color, health):
         super().__init__(x, y, width, height, color, health)
         self.dodge_chance = 0.3
@@ -250,749 +211,496 @@ class Boss(Box):
         self.speed = int(self.base_speed * (1 + 0.005 * (gs["level"] // 5)))
         self.phase, self.minions = 1, []
 
-    def update(self):
-        super().update()
-        for minion in self.minions[:]:
-            minion.update()
-            if minion.health <= 0: self.minions.remove(minion)
-
-    def update_phase(self):
-        health_ratio = self.health / self.max_health
-        if health_ratio <= 0.5 and self.phase == 1:
-            self.phase, self.color, self.dodge_chance = 2, RED, 0.6
-        elif health_ratio <= 0.25 and self.phase == 2:
-            self.phase, self.speed = 3, self.speed * 2
-            for _ in range(3):
-                minion_size = (int(self.rect.width * 0.7), int(self.rect.height * 0.7))
-                minion = Box(self.rect.centerx, self.rect.centery, *minion_size, NEBULA_PURPLE, 1)
-                minion.speed = 3
-                self.minions.append(minion)
-
-class Circle(Box):
-    """A special target that awards extra lives."""
-    def __init__(self, x, y, radius, speed):
-        super().__init__(x - radius, y - radius, radius * 2, radius * 2, YELLOW, 1)
-        self.radius, self.speed = radius, speed
-        self.direction_x, self.direction_y = random.choice([-1, 1]), random.choice([-1, 1])
-
-    def update(self):
-        self.rect.x += self.speed * self.direction_x
-        self.rect.y += self.speed * self.direction_y
-        if self.rect.left <= 0 or self.rect.right >= WIDTH: self.direction_x *= -1
-        if self.rect.top <= 0 or self.rect.bottom >= HEIGHT: self.direction_y *= -1
-
-    def draw(self, surface):
-        pygame.draw.circle(surface, self.color, self.rect.center, self.radius)
-
 class PowerUp:
-    """A collectible that grants a temporary bonus."""
     def __init__(self, x, y, type):
         self.rect = pygame.Rect(x, y, 40, 40)
         self.type = type
-        self.color = {"cosmic": NEBULA_PURPLE, "multi_tap": AURORA_GREEN, "black_hole": DARK_GRAY}.get(type, YELLOW)
+        self.colors = {"cosmic": NEBULA_PURPLE, "nyan": GRAY, "shield": STARLIGHT_CYAN}
+        self.color = self.colors.get(type, YELLOW)
 
     def draw(self, surface):
         pygame.draw.rect(surface, self.color, self.rect)
-        char = {"cosmic": "C", "multi_tap": "M", "black_hole": "B", "speed": "S"}.get(self.type, self.type[0].upper())
+        char = {"cosmic": "C", "nyan": "N", "shield": "S"}.get(self.type, self.type[0].upper())
         text = font.render(char, True, WHITE)
         surface.blit(text, text.get_rect(center=self.rect.center))
 
-class Barrier:
-    """An environmental hazard that moves across the screen."""
-    def __init__(self):
-        self.rect = pygame.Rect(0, random.randint(0, HEIGHT - 50), WIDTH, 50)
-        self.speed = 2
-        self.direction = random.choice([-1, 1])
+class NyanCat:
+    def __init__(self, w, h):
+        self.w, self.h = w, h
+        self.y = random.randint(50, h - 50)
+        self.x = -100
+        self.speed = 15
+        self.rect = pygame.Rect(self.x, self.y, 100, 50)
+        self.trail = []
 
-    def move(self):
-        self.rect.y += self.speed * self.direction
-        if self.rect.top <= 0 or self.rect.bottom >= HEIGHT:
-            self.direction *= -1
+    def update(self, boxes):
+        self.x += self.speed
+        self.rect.x = self.x
+        self.trail.append((self.rect.left, self.rect.centery))
+        if len(self.trail) > 50: self.trail.pop(0)
+        for box in boxes:
+            if self.rect.colliderect(box.rect):
+                box.special_type, box.color = "rainbow", (random.randint(100,255), random.randint(100,255), random.randint(100,255))
+        return self.x < self.w + 100
 
     def draw(self, surface):
+        for i, pos in enumerate(self.trail):
+            color = pygame.Color(0,0,0); color.hsva = ((i * 10) % 360, 100, 100, 100)
+            pygame.draw.rect(surface, color, (pos[0], pos[1]-15, 20, 30))
         pygame.draw.rect(surface, GRAY, self.rect)
+        pygame.draw.rect(surface, COSMIC_MAGENTA, self.rect.inflate(-10, -10))
+
+class Snail:
+    def __init__(self, w, h):
+        self.w, self.h = w, h
+        self.y = random.choice([30, h - 30])
+        self.x = -30 if random.random() > 0.5 else w + 30
+        self.speed = 0.5 * (-1 if self.x > w else 1)
+        self.rect = pygame.Rect(self.x, self.y, 30, 15)
+
+    def update(self):
+        self.x += self.speed
+        self.rect.x = self.x
+        return abs(self.x - self.w/2) < self.w/2 + 50
+
+    def draw(self, surface):
+        pygame.draw.rect(surface, GREEN, self.rect)
+        text = small_font.render(":)", True, BLACK)
+        surface.blit(text, self.rect.center)
 
 class Button:
-    """A clickable UI button."""
-    def __init__(self, x, y, width, height, text, color, text_color, hover_color=None):
+    def __init__(self, x, y, width, height, text, color, text_color, hover_color=None, flavor=""):
         self.rect = pygame.Rect(x, y, width, height)
-        self.text = text
-        self.color = color
-        self.text_color = text_color
-        self.hover_color = hover_color or color
+        self.text, self.color, self.text_color, self.hover_color, self.flavor = text, color, text_color, hover_color or color, flavor
 
     def draw(self, surface, is_hovered=False):
-        if is_hovered:
-            pygame.draw.rect(surface, DARK_GRAY, self.rect.inflate(8, 8), border_radius=12)
-        pygame.draw.rect(surface, self.hover_color if is_hovered else self.color, self.rect, border_radius=8)
+        current_color = self.hover_color if is_hovered else self.color
+        pygame.draw.rect(surface, DARK_GRAY, self.rect.inflate(8, 8), border_radius=12)
+        pygame.draw.rect(surface, current_color, self.rect, border_radius=8)
         text_surface = button_font.render(self.text, True, self.text_color)
         surface.blit(text_surface, text_surface.get_rect(center=self.rect.center))
+        if is_hovered and self.flavor:
+            flavor_surf = small_font.render(self.flavor, True, WHITE)
+            flavor_rect = flavor_surf.get_rect(center=(self.rect.centerx, self.rect.bottom + 20))
+            surface.blit(flavor_surf, flavor_rect)
 
-    def is_clicked(self, pos):
-        return self.rect.collidepoint(pos)
+    def is_clicked(self, pos): return self.rect.collidepoint(pos)
+
+# --------------------------------------------------------------------------
+# GAME MODE SPECIFIC LOGIC
+# --------------------------------------------------------------------------
+
+def start_level_chaos():
+    w, h = pygame.display.get_surface().get_size()
+    if random.random() < 0.1 and not gs.get("active_snail"): gs["active_snail"] = Snail(w,h)
+    if random.random() < 0.05: gs["meteor_shower_timer"] = time.time() + 2
+
+def update_mode_chaos():
+    w, h = pygame.display.get_surface().get_size()
+    if gs["active_nyan"] and not gs["active_nyan"].update(gs["boxes"]): gs["active_nyan"] = None
+    if gs["active_snail"] and not gs["active_snail"].update(): gs["active_snail"] = None
+    
+    if gs["meteor_shower_timer"] and time.time() > gs["meteor_shower_timer"]:
+        if time.time() - gs["meteor_shower_timer"] < 5:
+            if random.random() < 0.5: gs["asteroids"].append(Asteroid(w,h))
+        else: gs["meteor_shower_timer"] = 0
+    
+    if time.time() - gs["chaos_event_timer"] > 15:
+        event = random.choice(["flip", "gravity", "asteroids"])
+        gs["chaos_event_timer"] = time.time()
+        if event == "flip": gs["screen_flipped"] = not gs["screen_flipped"]
+        elif event == "gravity": gs["gravity_reversed"] = not gs["gravity_reversed"]
+        elif event == "asteroids": gs["meteor_shower_timer"] = time.time() + 1
+    
+    if time.time() - gs["chaos_event_timer"] > 7:
+        gs["screen_flipped"], gs["gravity_reversed"] = False, False
+
+def draw_mode_chaos(surface):
+    w, h = pygame.display.get_surface().get_size()
+    if gs["active_nyan"]: gs["active_nyan"].draw(surface)
+    if gs["active_snail"]: gs["active_snail"].draw(surface)
+    if gs["meteor_shower_timer"] and time.time() < gs["meteor_shower_timer"]:
+        warn_text = big_font.render("!!! METEOR SHOWER INCOMING !!!", True, RED)
+        surface.blit(warn_text, warn_text.get_rect(center=(w//2, h//2)))
+
+# --- GAME MODE CONFIGURATION DICTIONARY ---
+GAME_MODES = {
+    "classic": {
+        "allowed_boxes": ["explosive", "regen", "shrinking", "splitter"],
+        "allowed_powerups": ["shield", "cosmic"],
+        "box_multiplier": 1.0, "chaotic_particles": False, "stealth": False
+    },
+    "chaos_mode": {
+        "update_logic": update_mode_chaos, "draw_logic": draw_mode_chaos, "start_level_logic": start_level_chaos,
+        "allowed_boxes": ["dramatic", "teleporter"],
+        "allowed_powerups": ["shield", "cosmic", "nyan"],
+        "box_multiplier": 3.0, "chaotic_particles": True, "stealth": False
+    },
+    "stealth_mode": {
+        "allowed_boxes": [], "allowed_powerups": ["shield"],
+        "box_multiplier": 0.5, "chaotic_particles": False, "stealth": True
+    },
+    "boss_rush": {
+        "allowed_boxes": [], "allowed_powerups": ["shield"],
+        "box_multiplier": 0.0, "chaotic_particles": True, "stealth": False
+    }
+}
 
 
 # GAME STATE & VARIABLES
 
-def setup_game_variables(difficulty="casual"):
-    """Initializes or resets all game variables for a new game."""
-    lives = DIFFICULTY_SETTINGS.get(difficulty, {}).get("lives", 10)
-    state = {
+def setup_game_variables():
+    """Only sets up the main menu state. Game mode is configured later."""
+    return {
         "game_state": "main_menu",
-        "difficulty": difficulty,
-        "level": 1, "lives": lives, "max_lives": lives, "score": 0,
-        "score_multiplier": 1, "boxes": [], "stars": [], "asteroids": [], "boss": None, "circle": None, "power_up": None,
-        "power_up_active": None, "power_up_timer": 0, "last_boss_speed": 5, "combo": 0, "combo_timer": 0, "fog_active": False,
-        "fog_timer": 0, "barrier": None, "hud_active": True, "hud_extended": False, "debug_mode": False, "spiral_effect": None,
-        "cosmic_aura_timer": 0, "player_sequence": [], "active_cheats": set(), "input_level": "", "cursor_pos": [WIDTH//2, HEIGHT//2],
-        "high_scores": load_high_scores(), "box_colors": [NEBULA_BLUE, NEBULA_PURPLE, GALAXY_INDIGO, STARLIGHT_CYAN, COSMIC_MAGENTA, AURORA_GREEN, RED],
-        "particles": [], "cosmic_dust": 0, "screen_shake": 0, "level_clear_timer": 0, "active_black_hole": None,
-        "upgrades": {"damage": 0, "lives": 0, "dust_bonus": 0, "powerup_time": 0},
-        "tutorial_stage": 0, "tutorial_objects": [], "tutorial_text": ""
+        "stars": [Star(*pygame.display.get_surface().get_size()) for _ in range(100)],
+        "high_scores": load_high_scores(),
+        "stats": load_stats(),
+        "upgrades": {"damage": 0, "lives": 0, "dust_bonus": 0, "powerup_time": 0}
     }
-    state["basic_tapper"] = Tool("basic_tapper", 1, 1, 1, 0, 0, False)
-    state["cheat_tapper"] = Tool("cheat_tapper", 99, 999999, 1000, 5, 5, True)
-    state["equipped_tool"] = state["basic_tapper"]
-    return state
 
 
 # HELPER FUNCTIONS
 
-def load_high_scores():
+def load_from_file(filename, default_data):
     try:
-        with open("highscores.txt", "r") as f:
-            return [int(line.strip()) for line in f if line.strip().isdigit()][:MAX_HIGH_SCORES]
-    except FileNotFoundError:
-        return [0] * MAX_HIGH_SCORES
+        with open(filename, "r") as f: return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError): return default_data
 
+def save_to_file(filename, data):
+    with open(filename, "w") as f: json.dump(data, f, indent=4)
+
+def load_high_scores(): return load_from_file("highscores.json", [0]*MAX_HIGH_SCORES)
 def save_high_scores():
     gs["high_scores"].append(int(gs["score"]))
     gs["high_scores"] = sorted(list(set(gs["high_scores"])), reverse=True)[:MAX_HIGH_SCORES]
-    with open("highscores.txt", "w") as f:
-        for hs in gs["high_scores"]:
-            f.write(f"{hs}\n")
+    save_to_file("highscores.json", gs["high_scores"])
 
-def get_current_time():
-    return time.strftime("%I:%M %p, %B %d, %Y")
+def load_stats():
+    default_stats = {"total_taps": 0, "total_boxes": 0, "powerups_collected": 0, "snails_harmed": 0}
+    return load_from_file("gamestats.json", default_stats)
+def save_stats(): save_to_file("gamestats.json", gs["stats"])
 
 def start_new_level():
+    w, h = pygame.display.get_surface().get_size()
     gs["game_state"] = "playing"
-    if gs["level"] > MAX_LEVEL:
-        gs["game_state"] = "victory"
-        return
-    gs["boxes"], gs["boss"], gs["circle"], gs["asteroids"] = [], None, None, []
-    if gs["level"] % 10 == 0:
-        spawn_circle()
-    elif gs["level"] % 5 == 0:
-        spawn_boss()
-    else:
-        spawn_boxes()
+    if gs["game_mode_name"] == "classic" and gs["level"] > MAX_LEVEL: gs["game_state"] = "victory"; return
+    gs["boxes"], gs["boss"], gs["asteroids"] = [], None, []
+    
+    if gs["game_mode_name"] == "boss_rush": spawn_boss()
+    elif gs["level"] % 5 == 0: spawn_boss()
+    else: spawn_boxes()
+    
     spawn_power_up()
-    if not gs["stars"]:
-        spawn_stars()
+    if not gs["stars"]: gs["stars"] = [Star(w,h) for _ in range(100)]
+    
+    start_logic = gs.get("start_level_mode_logic")
+    if start_logic: start_logic()
 
 def create_explosion(x, y, color):
-    for _ in range(10):
-        gs["particles"].append(Particle(x, y, color))
+    for _ in range(25 if gs["chaotic_particles"] else 10): gs["particles"].append(Particle(x, y, color))
 
-def trigger_screen_shake(intensity=10, duration=15):
-    gs["screen_shake"], gs["shake_intensity"] = duration, intensity
-
-# --- Spawning Functions ---
 def spawn_boxes():
-    num_boxes = int((5 + gs["level"] // 5) * DIFFICULTY_SETTINGS[gs["difficulty"]]["spawn_mod"])
+    w, h = pygame.display.get_surface().get_size()
+    base_num = int((5 + gs["level"] // 5) * DIFFICULTY_SETTINGS[gs["difficulty"]]["spawn_mod"])
+    num_boxes = int(base_num * gs["box_spawn_multiplier"])
+    
     for _ in range(num_boxes):
-        size = random.randint(50, 100)
-        x, y = random.randint(0, WIDTH - size), random.randint(0, HEIGHT - size)
-        color = random.choice(gs["box_colors"])
+        size = random.randint(30, 80)
+        x, y = random.randint(0, w - size), random.randint(0, h - size)
+        color = random.choice(gs.get("box_colors", [RED]))
         health = BASE_BOX_HEALTH * DIFFICULTY_SETTINGS[gs["difficulty"]]["health_mod"]
         gs["boxes"].append(Box(x, y, size, size, color, health))
 
 def spawn_boss():
-    base_size, level = 200, gs["level"]
-    size_multiplier = max(0.25, 1 - 0.15 * (level//5)) if level < 50 else 0.1 + 0.10 * ((level-50)//5)
-    size = (min(int(base_size*size_multiplier), WIDTH-20), min(int(base_size*size_multiplier), HEIGHT-20))
-    pos = (WIDTH//2 - size[0]//2, HEIGHT//2 - size[1]//2)
-    health = (BASE_BOX_HEALTH * (BOSS_HEALTH_MULTIPLIER ** (level // 5))) * DIFFICULTY_SETTINGS[gs["difficulty"]]["health_mod"]
-    gs["boss"] = Boss(*pos, *size, NEBULA_PURPLE, health)
-    gs["last_boss_speed"] = gs["boss"].speed
-
-def spawn_circle():
-    gs["circle"] = Circle(WIDTH//2, HEIGHT//2, 40, gs["last_boss_speed"])
+    w, h = pygame.display.get_surface().get_size()
+    size = int(150 * (1 + gs["level"] * 0.05))
+    pos = (w//2 - size//2, h//2 - size//2)
+    health = (BASE_BOX_HEALTH * (BOSS_HEALTH_MULTIPLIER ** (gs["level"] // 5))) * DIFFICULTY_SETTINGS[gs["difficulty"]]["health_mod"]
+    if gs["game_mode_name"] == "boss_rush": health *= (1 + gs["level"] * 0.2)
+    gs["boss"] = Boss(*pos, size, size, NEBULA_PURPLE, health)
 
 def spawn_power_up():
-    if random.random() < 0.15:
-        x, y = random.randint(0, WIDTH - 40), random.randint(0, HEIGHT - 40)
-        types = ["speed", "shield", "freeze", "cosmic", "multi_tap", "black_hole"]
-        gs["power_up"] = PowerUp(x, y, random.choice(types))
-
-def spawn_stars():
-    gs["stars"] = [Star() for _ in range(100)]
-
-def spawn_asteroid():
-    asteroid_chance = 0.02 * DIFFICULTY_SETTINGS[gs["difficulty"]]["asteroid_mod"]
-    if gs["level"] >= ASTEROID_START_LEVEL and len(gs["asteroids"]) < (gs["level"] // 10) and random.random() < asteroid_chance:
-        gs["asteroids"].append(Asteroid())
-
-# --- Cheat Code Logic ---
-def check_cheat_code():
-    seq = tuple(gs["player_sequence"])
-    for name, code in CHEAT_SEQUENCES.items():
-        if seq == tuple(code) and name not in gs["active_cheats"]:
-            activate_cheat(name)
-            gs["player_sequence"].clear()
-            break
-
-def activate_cheat(name):
-    if name == "INVINCIBILITY":
-        gs["active_cheats"].add(name)
-    elif name == "INSTANT_KILL":
-        gs["active_cheats"].add(name)
-    elif name == "DOUBLE_SCORE":
-        gs["active_cheats"].add(name)
-        gs["score_multiplier"] = 2
-    elif name == "LEVEL_SKIP":
-        gs["level"] += 1
-        start_new_level()
-    elif name == "HUD_TOGGLE":
-        gs["hud_active"] = not gs["hud_active"]
-    elif name == "DEBUG_MODE":
-        gs["debug_mode"] = not gs["debug_mode"]
-        gs["equipped_tool"] = gs["cheat_tapper"] if gs["debug_mode"] else gs["basic_tapper"]
-    print(f"{XTERM_BLUE}Cheat Activated: {name}{XTERM_RESET}")
-
-# --- Tutorial Logic ---
-def start_tutorial():
-    gs["game_state"] = "tutorial"
-    gs["tutorial_stage"] = 0
-    gs["tutorial_objects"] = []
-    gs["tutorial_text"] = "Welcome! Click the stationary box to destroy it."
-    box = Box(WIDTH//2 - 50, HEIGHT//2 - 50, 100, 100, STARLIGHT_CYAN, 1)
-    box.speed = 0
-    gs["tutorial_objects"].append(box)
-
-def advance_tutorial():
-    gs["tutorial_stage"] += 1
-    gs["tutorial_objects"] = []
-    stage = gs["tutorial_stage"]
-    if stage == 1:
-        gs["tutorial_text"] = "Good job! Some boxes move. Track and tap this one."
-        box = Box(100, HEIGHT//2 - 50, 80, 80, COSMIC_MAGENTA, 1)
-        box.speed = 3
-        gs["tutorial_objects"].append(box)
-    elif stage == 2:
-        gs["tutorial_text"] = "Watch out! AVOID clicking on gray asteroids. They cost a life."
-        asteroid = Asteroid()
-        asteroid.x, asteroid.y, asteroid.vx, asteroid.vy = WIDTH+20, HEIGHT//2, -3, 0
-        gs["tutorial_objects"].append(asteroid)
-    elif stage == 3:
-        gs["tutorial_text"] = "These are helpful! Collect colorful power-ups for temporary boosts."
-        powerup = PowerUp(WIDTH//2 - 20, HEIGHT//2-20, "shield")
-        gs["tutorial_objects"].append(powerup)
-    elif stage == 4:
-        gs["tutorial_text"] = "You're ready to play! Good luck."
-    else:
-        gs["game_state"] = "main_menu"
+    w, h = pygame.display.get_surface().get_size()
+    allowed = gs.get("allowed_powerups", [])
+    if random.random() < 0.2 and allowed:
+        powerup_type = random.choice(allowed)
+        gs["power_up"] = PowerUp(random.randint(0, w-40), random.randint(0, h-40), powerup_type)
 
 
 # GAME LOGIC (UPDATE)
-
 def update_game_state():
-    state = gs["game_state"]
-    if state == "tutorial":
-        for obj in gs["tutorial_objects"]:
-            if isinstance(obj, Box): obj.update()
-            elif isinstance(obj, Asteroid): obj.move()
-        if gs["tutorial_stage"] == 2 and not gs["tutorial_objects"]:
-            advance_tutorial()
-        return
-
-    if state == "level_clear":
-        if time.time() - gs["level_clear_timer"] > 2:
-            gs["level"] += 1
-            start_new_level()
-        return
-        
-    if state != "playing":
-        return
+    if gs["game_state"] != "playing": return
 
     for box in gs["boxes"]: box.update()
+    if gs["boss"]: gs["boss"].update()
+    for star in gs["stars"]: star.update()
+    for p in gs["particles"][:]:
+        if not p.update(): gs["particles"].remove(p)
     for asteroid in gs["asteroids"][:]:
         asteroid.move()
         if asteroid.is_offscreen(): gs["asteroids"].remove(asteroid)
-    if gs["boss"]: gs["boss"].update()
-    if gs["circle"]: gs["circle"].update()
-    if gs["barrier"]: gs["barrier"].move()
-    for star in gs["stars"]: star.update()
-    if gs["spiral_effect"] and not gs["spiral_effect"].update(): gs["spiral_effect"] = None
 
-    if gs["active_black_hole"]:
-        if not gs["active_black_hole"].update(gs["boxes"]):
-            gs["active_black_hole"] = None
+    update_logic = gs.get("update_mode_logic")
+    if update_logic: update_logic()
 
-    for p in gs["particles"][:]:
-        if not p.update(): gs["particles"].remove(p)
-
-    spawn_asteroid()
-
-    if gs["power_up_active"]:
-        powerup_duration_bonus = gs["upgrades"]["powerup_time"]
-        duration = (5 if gs["power_up_active"] == "freeze" else 10) + powerup_duration_bonus
-        if time.time() - gs["power_up_timer"] > duration:
-            gs["power_up_active"] = None
-            for box in gs["boxes"]: box.speed = 5 if box.special_type != "golden" else 8
-            if gs["boss"]: gs["boss"].speed = gs["last_boss_speed"]
-            if gs["circle"]: gs["circle"].speed = gs["last_boss_speed"]
-            gs["score_multiplier"] = 2 if "DOUBLE_SCORE" in gs["active_cheats"] else 1
-            if "INVINCIBILITY" not in gs["active_cheats"]: gs["active_cheats"].discard("SHIELD_POWERUP")
-            gs["cosmic_aura_timer"] = 0
-
-    if gs["combo"] > 0 and time.time() - gs["combo_timer"] > 3: gs["combo"] = 0
-    if gs["level"] % 15 == 0 and not gs["fog_active"]: gs["fog_active"], gs["fog_timer"] = True, time.time()
-    if gs["fog_active"] and time.time() - gs["fog_timer"] > 10: gs["fog_active"] = False
-    if gs["level"] > 20 and not gs["barrier"] and random.random() < 0.01: gs["barrier"] = Barrier()
-
-    if not gs["boxes"] and not gs["boss"] and not gs["circle"]:
-        gs["game_state"] = "level_clear"
-        gs["level_clear_timer"] = time.time()
+    if not gs["boxes"] and not gs["boss"]:
+        gs["level"] += 1
+        start_new_level()
 
 
 # DRAWING FUNCTIONS
-
 def draw_elements():
-    surface_to_draw_on = screen if gs["screen_shake"] == 0 else screen.copy()
-    surface_to_draw_on.fill(BLACK)
-    
-    state = gs["game_state"]
-    
-    if state == "main_menu":
-        draw_main_menu(surface_to_draw_on)
-    elif state == "difficulty_select":
-        draw_difficulty_select_screen(surface_to_draw_on)
-    elif state == "tutorial":
-        draw_tutorial_screen(surface_to_draw_on)
-    elif state == "shop":
-        draw_shop_screen(surface_to_draw_on)
-    elif state in ["playing", "paused", "game_over", "victory", "level_clear", "credits"]:
-        if state != "credits":
-            draw_game_screen(surface_to_draw_on)
-        if state == "paused":
-            draw_pause_screen(surface_to_draw_on)
-        elif state == "game_over":
-            draw_game_over_screen(surface_to_draw_on)
-        elif state == "victory":
-            draw_victory_screen(surface_to_draw_on)
-        elif state == "level_clear":
-            draw_level_clear_screen(surface_to_draw_on)
-        elif state == "credits":
-            draw_credits_screen(surface_to_draw_on)
+    w, h = pygame.display.get_surface().get_size()
+    main_surface = screen
+    if gs.get("screen_flipped"):
+        main_surface = pygame.Surface((w, h))
 
-    if gs["screen_shake"] > 0:
-        gs["screen_shake"] -= 1
-        offset_x = random.randint(-gs["shake_intensity"], gs["shake_intensity"])
-        offset_y = random.randint(-gs["shake_intensity"], gs["shake_intensity"])
-        screen.blit(surface_to_draw_on, (offset_x, offset_y))
-    elif surface_to_draw_on is not screen:
-        screen.blit(surface_to_draw_on, (0, 0))
+    main_surface.fill(BLACK)
+    state = gs["game_state"]
+
+    if state in ["playing", "paused", "game_over", "victory"]:
+        for star in gs["stars"]: star.draw(main_surface)
+        if gs["boss"]: gs["boss"].draw(main_surface)
+        for box in gs["boxes"]: box.draw(main_surface)
+        if gs["power_up"]: gs["power_up"].draw(main_surface)
+        for asteroid in gs["asteroids"]: asteroid.draw(main_surface)
+        
+        draw_logic = gs.get("draw_mode_extras")
+        if draw_logic: draw_logic(main_surface)
+
+        for p in gs["particles"]: p.draw(main_surface)
+        if gs["hud_active"]: draw_hud(main_surface)
+
+    elif state == "main_menu": draw_main_menu(main_surface)
+    elif state == "difficulty_select": draw_difficulty_select_screen(main_surface)
+    elif state == "stats": draw_stats_screen(main_surface)
+    elif state == "shop": draw_shop_screen(main_surface)
+
+    if state == "paused": draw_screen_overlay(main_surface, "Paused", pause_buttons)
+    elif state == "game_over": draw_screen_overlay(main_surface, "Game Over", [reset_button])
+    elif state == "victory": draw_screen_overlay(main_surface, "You Won?", [reset_button])
+
+    if main_surface is not screen:
+        screen.blit(pygame.transform.flip(main_surface, False, True), (0, 0))
     
     pygame.display.flip()
 
-def draw_game_screen(surface):
-    for star in gs["stars"]: star.draw(surface)
-    for box in gs["boxes"]: box.draw(surface)
-    for asteroid in gs["asteroids"]: asteroid.draw(surface)
-    if gs["boss"]:
-        gs["boss"].draw(surface)
-        for minion in gs["boss"].minions: minion.draw(surface)
-    if gs["circle"]: gs["circle"].draw(surface)
-    if gs["power_up"]: gs["power_up"].draw(surface)
-    if gs["barrier"]: gs["barrier"].draw(surface)
-    if gs["spiral_effect"]: gs["spiral_effect"].draw(surface)
-    if gs["active_black_hole"]: gs["active_black_hole"].draw(surface)
-    for p in gs["particles"]: p.draw(surface)
-    draw_cursor(surface)
-    if gs["hud_active"]: draw_hud(surface)
-    if gs["fog_active"]:
-        fog = pygame.Surface(surface.get_size()); fog.set_alpha(50); fog.fill(GRAY)
-        surface.blit(fog, (0, 0))
-
-def draw_cursor(surface):
-    pos = tuple(map(int, gs["cursor_pos"]))
-    if gs["cosmic_aura_timer"] and time.time() - gs["cosmic_aura_timer"] < 10:
-        aura_radius = int(15 + 5 * math.sin(time.time() * 3))
-        aura_surface = pygame.Surface((aura_radius * 2, aura_radius * 2), pygame.SRCALPHA)
-        pygame.draw.circle(aura_surface, (*NEBULA_PURPLE, 100), (aura_radius, aura_radius), aura_radius)
-        surface.blit(aura_surface, (pos[0] - aura_radius, pos[1] - aura_radius))
-    pygame.draw.circle(surface, STARLIGHT_CYAN, pos, 10)
-
 def draw_hud(surface):
-    mouse_pos = pygame.mouse.get_pos()
-    hud_surface = pygame.Surface((300, 150), pygame.SRCALPHA); hud_surface.fill((*NEBULA_BLUE, 150))
-    pygame.draw.rect(hud_surface, NEBULA_PURPLE, (0, 0, 300, 150), 2)
-    surface.blit(hud_surface, (10, 60))
-    surface.blit(font.render(f"Lives: {gs['lives']}/{gs['max_lives']}", True, WHITE), (20, 70))
-    surface.blit(font.render(f"Level: {gs['level']}", True, WHITE), (20, 100))
-    surface.blit(font.render(f"Score: {int(gs['score'])}", True, WHITE), (20, 130))
-    surface.blit(font.render(f"Dust: {gs['cosmic_dust']}", True, YELLOW), (20, 160))
-
-    if gs["combo"] > 0:
-        combo_pulse = 100 + 50 * math.sin(time.time() * 5); color = YELLOW if gs["combo"] < 5 else RED
-        combo_surface = pygame.Surface((150, 50), pygame.SRCALPHA); combo_surface.fill((*color, int(combo_pulse)))
-        surface.blit(combo_surface, (320, 100))
-        surface.blit(font.render(f"Combo: x{1 + gs['combo'] * 0.5:.1f}", True, BLACK), (370, 110))
-        combo_time_left = max(0, 3 - (time.time() - gs["combo_timer"])); combo_timer_width = int(150 * (combo_time_left / 3))
-        pygame.draw.rect(surface, color, (320, 150, combo_timer_width, 10))
-
-    if gs["power_up_active"]:
-        power_up_surface = pygame.Surface((220, 50), pygame.SRCALPHA); power_up_surface.fill((*NEBULA_PURPLE, 150))
-        surface.blit(power_up_surface, (480, 70))
-        surface.blit(font.render(f"Power-Up: {gs['power_up_active']}", True, WHITE), (490, 85))
-        duration = (5 if gs["power_up_active"] == "freeze" else 10) + gs["upgrades"]["powerup_time"]
-        time_left = max(0, duration - (time.time() - gs["power_up_timer"])); bar_width = int(200 * (time_left / duration))
-        pygame.draw.rect(surface, COSMIC_MAGENTA, (490, 110, bar_width, 10))
-
-    for btn in hud_buttons.values(): btn.draw(surface, btn.rect.collidepoint(mouse_pos))
+    w, h = pygame.display.get_surface().get_size()
+    surface.blit(font.render(f"Lives: {gs['lives']}", True, WHITE), (10, 10))
+    surface.blit(font.render(f"Level: {gs['level']}", True, WHITE), (10, 40))
+    surface.blit(font.render(f"Score: {int(gs['score'])}", True, WHITE), (10, 70))
+    surface.blit(font.render(f"Dust: {gs['cosmic_dust']}", True, YELLOW), (10, 100))
+    mode_text = f"Mode: {gs['game_mode_name'].replace('_', ' ').title()}"
+    surface.blit(font.render(mode_text, True, STARLIGHT_CYAN), (w - font.size(mode_text)[0] - 10, 10))
 
 def draw_main_menu(surface):
+    w, h = pygame.display.get_surface().get_size()
     for star in gs["stars"]: star.draw(surface)
     title_surf = big_font.render("Box Tapper: Evolution", True, WHITE)
-    surface.blit(title_surf, title_surf.get_rect(center=(WIDTH // 2, HEIGHT // 3)))
+    surface.blit(title_surf, title_surf.get_rect(center=(w // 2, h // 4)))
     mouse_pos = pygame.mouse.get_pos()
-    start_button.draw(surface, start_button.rect.collidepoint(mouse_pos))
-    quit_button.draw(surface, quit_button.rect.collidepoint(mouse_pos))
-
-def draw_screen_overlay(surface, title_text):
-    overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA); overlay.fill((0, 0, 0, 200))
-    surface.blit(overlay, (0, 0))
-    if title_text:
-        text_surf = big_font.render(title_text, True, WHITE)
-        surface.blit(text_surf, text_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
-
-def draw_pause_screen(surface):
-    overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA); overlay.fill((0, 0, 0, 200))
-    surface.blit(overlay, (0, 0))
-    text_surf = big_font.render("Paused", True, WHITE)
-    surface.blit(text_surf, text_surf.get_rect(center=(WIDTH // 2, HEIGHT // 4)))
-    mouse_pos = pygame.mouse.get_pos()
-    resume_button.draw(surface, resume_button.rect.collidepoint(mouse_pos))
-    shop_button.draw(surface, shop_button.rect.collidepoint(mouse_pos))
-    main_menu_button.draw(surface, main_menu_button.rect.collidepoint(mouse_pos))
-
-def draw_game_over_screen(surface):
-    draw_screen_overlay(surface, "Game Over!")
-    score_display = font.render(f"Final Score: {int(gs['score'])}", True, WHITE)
-    surface.blit(score_display, score_display.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
-    reset_button.draw(surface, reset_button.rect.collidepoint(pygame.mouse.get_pos()))
-
-def draw_victory_screen(surface):
-    draw_screen_overlay(surface, "")
-    lines = [f"Congratulations! You've beaten Level {MAX_LEVEL}!", f"Final Score: {int(gs['score'])}", "Thanks for playing!"]
-    for i, line in enumerate(lines):
-        text = font.render(line, True, WHITE)
-        surface.blit(text, text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 100 + i * 50)))
-    continue_button.draw(surface, continue_button.rect.collidepoint(pygame.mouse.get_pos()))
-
-def draw_credits_screen(surface):
-    draw_screen_overlay(surface, "")
-    credits_lines = ["ENDGAME CREDITS", "CODER: TONMOY KS", "DESIGNER: TONMOY KS", "LEAD DEVELOPER: TONMOY KS", "TASK MANAGER: TONMOY KS", "CONCEPT ARTIST: TONMOY KS", "PUBLISHER: TONMOY KS", "", "THE END"]
-    for i, line in enumerate(credits_lines):
-        text = font.render(line, True, WHITE)
-        surface.blit(text, text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 150 + i * 40)))
-    exit_button.draw(surface, exit_button.rect.collidepoint(pygame.mouse.get_pos()))
-
-def draw_level_clear_screen(surface):
-    text_surf = big_font.render("Level Clear!", True, GOLD)
-    surface.blit(text_surf, text_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
-
-def draw_shop_screen(surface):
-    surface.fill(GALAXY_INDIGO)
-    mouse_pos = pygame.mouse.get_pos()
-    title_surf = big_font.render("Upgrade Shop", True, WHITE)
-    surface.blit(title_surf, title_surf.get_rect(center=(WIDTH // 2, 80)))
-    dust_surf = font.render(f"Cosmic Dust: {gs['cosmic_dust']}", True, YELLOW)
-    surface.blit(dust_surf, dust_surf.get_rect(center=(WIDTH // 2, 150)))
-    for i, (name, btn) in enumerate(shop_buttons.items()):
-        upgrade_level = gs["upgrades"][name]
-        cost = UPGRADE_COSTS[name] * (2 ** upgrade_level)
-        btn.text = f"{UPGRADE_NAMES[name]} ({upgrade_level}) - Cost: {cost}"
-        btn.draw(surface, btn.rect.collidepoint(mouse_pos))
-    back_button.draw(surface, back_button.rect.collidepoint(mouse_pos))
+    for btn in main_menu_buttons: btn.draw(surface, btn.is_clicked(mouse_pos))
 
 def draw_difficulty_select_screen(surface):
+    w, h = pygame.display.get_surface().get_size()
     for star in gs["stars"]: star.draw(surface)
-    title_surf = big_font.render("Select Difficulty", True, WHITE)
-    surface.blit(title_surf, title_surf.get_rect(center=(WIDTH // 2, 80)))
+    title_surf = big_font.render("Select Your Experience", True, WHITE)
+    surface.blit(title_surf, title_surf.get_rect(center=(w // 2, 80)))
     mouse_pos = pygame.mouse.get_pos()
-    for btn in difficulty_buttons:
-        btn.draw(surface, btn.rect.collidepoint(mouse_pos))
-    back_to_menu_button.draw(surface, back_to_menu_button.rect.collidepoint(mouse_pos))
+    for btn in mode_buttons: btn.draw(surface, btn.is_clicked(mouse_pos))
 
-def draw_tutorial_screen(surface):
-    for star in gs["stars"]: star.draw(surface)
-    for obj in gs["tutorial_objects"]: obj.draw(surface)
-    text_surf = tutorial_font.render(gs["tutorial_text"], True, WHITE)
-    text_rect = text_surf.get_rect(center=(WIDTH // 2, 150))
-    bg_rect = text_rect.inflate(40, 20)
-    bg_surf = pygame.Surface(bg_rect.size, pygame.SRCALPHA)
-    bg_surf.fill((*GALAXY_INDIGO, 200))
-    surface.blit(bg_surf, bg_rect)
-    surface.blit(text_surf, text_rect)
+def draw_stats_screen(surface):
+    w, h = pygame.display.get_surface().get_size()
+    surface.fill(GALAXY_INDIGO)
+    title_surf = big_font.render("Your Legacy of Tapping", True, WHITE)
+    surface.blit(title_surf, title_surf.get_rect(center=(w // 2, 80)))
+    stats = gs["stats"]
+    lines = [ f"Total Boxes Tapped: {stats['total_boxes']}", f"Total Clicks: {stats['total_taps']}",
+        f"Power-ups Collected: {stats['powerups_collected']}", f"Innocent Snails Harmed: {stats['snails_harmed']} (Monster!)" ]
+    for i, line in enumerate(lines):
+        line_surf = font.render(line, True, WHITE)
+        surface.blit(line_surf, line_surf.get_rect(center=(w // 2, 200 + i * 50)))
+    back_button.rect.center = (w // 2, h - 100)
+    back_button.draw(surface, back_button.is_clicked(pygame.mouse.get_pos()))
+
+def draw_shop_screen(surface):
+    w, h = pygame.display.get_surface().get_size()
+    surface.fill(GALAXY_INDIGO)
+    title_surf = big_font.render("Upgrade Shop", True, WHITE)
+    surface.blit(title_surf, title_surf.get_rect(center=(w // 2, 80)))
+    back_button.rect.center = (w//2, h-100)
+    back_button.draw(surface, back_button.is_clicked(pygame.mouse.get_pos()))
+
+def draw_screen_overlay(surface, title_text, buttons):
+    w, h = pygame.display.get_surface().get_size()
+    overlay = pygame.Surface((w,h), pygame.SRCALPHA); overlay.fill((0, 0, 0, 200))
+    surface.blit(overlay, (0, 0))
+    text_surf = big_font.render(title_text, True, WHITE)
+    surface.blit(text_surf, text_surf.get_rect(center=(w // 2, h // 4)))
+    mouse_pos = pygame.mouse.get_pos()
+    for btn in buttons: btn.draw(surface, btn.is_clicked(mouse_pos))
 
 
 # EVENT HANDLING
-
 def handle_input():
-    global running, WIDTH, HEIGHT
+    global running
     for event in pygame.event.get():
-        if event.type == pygame.QUIT: running = False
-        elif event.type == pygame.VIDEORESIZE:
-            WIDTH, HEIGHT = event.w, event.h
-            pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            handle_mouse_click(event.pos)
-        elif event.type == pygame.KEYDOWN:
-            handle_keyboard_input(event)
+        if event.type == pygame.QUIT: save_stats(); running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: handle_mouse_click(event.pos)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+            if gs.get("game_state") == "playing": gs["game_state"] = "paused"
+            elif gs.get("game_state") == "paused": gs["game_state"] = "playing"
 
 def handle_mouse_click(pos):
-    state = gs["game_state"]
+    if gs.get("stats"): gs["stats"]["total_taps"] += 1
+    state = gs.get("game_state")
     if state == "main_menu":
-        if start_button.is_clicked(pos): gs["game_state"] = "difficulty_select"
-        elif quit_button.is_clicked(pos): global running; running = False
+        if main_menu_buttons[0].is_clicked(pos): gs["game_state"] = "difficulty_select"
+        if main_menu_buttons[1].is_clicked(pos): gs["game_state"] = "stats"
+        if main_menu_buttons[2].is_clicked(pos): save_stats(); global running; running = False
     elif state == "difficulty_select":
-        if back_to_menu_button.is_clicked(pos): gs["game_state"] = "main_menu"
-        for btn in difficulty_buttons:
+        for btn in mode_buttons:
             if btn.is_clicked(pos):
-                if btn.text.lower() == "tutorial":
-                    start_tutorial()
-                else:
-                    reset_game_state(btn.text.lower())
-    elif state == "tutorial":
-        clicked_obj = None
-        for obj in gs["tutorial_objects"][:]:
-            if obj.rect.collidepoint(pos):
-                if isinstance(obj, Asteroid): return # Can't click asteroids
-                gs["tutorial_objects"].remove(obj)
-                clicked_obj = obj
-                break
-        if clicked_obj: advance_tutorial()
-    elif state == "game_over":
-        if reset_button.is_clicked(pos): gs["game_state"] = "main_menu"
-    elif state == "victory":
-        if continue_button.is_clicked(pos): gs["game_state"] = "credits"
-    elif state == "credits":
-        if exit_button.is_clicked(pos): global running; running = False
+                if btn.text == "Back": gs["game_state"] = "main_menu"
+                else: reset_game_state("casual", btn.text.lower().replace(" ", "_"))
+    elif state == "stats" or state == "shop":
+        if back_button.is_clicked(pos): gs["game_state"] = "main_menu"
     elif state == "paused":
-        if resume_button.is_clicked(pos): gs["game_state"] = "playing"
-        elif shop_button.is_clicked(pos): gs["game_state"] = "shop"
-        elif main_menu_button.is_clicked(pos): gs["game_state"] = "main_menu"
-    elif state == "shop":
-        if back_button.is_clicked(pos): gs["game_state"] = "paused"
-        for name, btn in shop_buttons.items():
-            if btn.is_clicked(pos): purchase_upgrade(name)
-    elif state == "playing":
-        gs["cursor_pos"] = list(pos)
-        if gs["hud_active"] and handle_hud_button_clicks(pos): return
-        handle_gameplay_click(pos)
-
-def handle_hud_button_clicks(pos):
-    if hud_buttons["hud"].is_clicked(pos): gs["hud_active"] = False
-    elif hud_buttons["reset"].is_clicked(pos): gs["game_state"] = "main_menu"
-    elif hud_buttons["debug"].is_clicked(pos): activate_cheat("DEBUG_MODE")
-    elif hud_buttons["high_scores"].is_clicked(pos): print(f"{XTERM_BLUE}High Scores: {gs['high_scores']}{XTERM_RESET}")
-    else: return False
-    return True
+        if pause_buttons[0].is_clicked(pos): gs["game_state"] = "playing"
+        if pause_buttons[1].is_clicked(pos): gs["game_state"] = "shop"
+        if pause_buttons[2].is_clicked(pos): gs["game_state"] = "main_menu"
+    elif state == "game_over" or state == "victory":
+        if reset_button.is_clicked(pos): gs["game_state"] = "main_menu"
+    elif state == "playing": handle_gameplay_click(pos)
 
 def handle_gameplay_click(pos):
-    if gs["power_up_active"] == "black_hole":
-        gs["active_black_hole"] = BlackHole(pos[0], pos[1])
-        gs["power_up_active"] = None
+    hit_something = False
+    if gs.get("active_snail") and gs["active_snail"].rect.collidepoint(pos):
+        gs["score"] -= 1000
+        gs["stats"]["snails_harmed"] += 1
+        gs["active_snail"] = None
+        return
+            
+    if gs.get("power_up") and gs["power_up"].rect.collidepoint(pos):
+        gs["stats"]["powerups_collected"] += 1
+        if gs["power_up"].type == "nyan": gs["active_nyan"] = NyanCat(*pygame.display.get_surface().get_size())
+        else: gs["power_up_active"] = gs["power_up"].type; gs["power_up_timer"] = time.time()
+        gs["power_up"] = None
         return
 
-    hit_something = False
-    for asteroid in gs["asteroids"][:]:
-        if asteroid.rect.collidepoint(pos):
-            if not ("INVINCIBILITY" in gs["active_cheats"] or "SHIELD_POWERUP" in gs["active_cheats"]): gs["lives"] -= 1
-            gs["asteroids"].remove(asteroid); hit_something = True; break
-    if hit_something: return
-
-    if gs["power_up_active"] == "multi_tap":
-        hit_something = True; radius = 75
-        for box in gs["boxes"][:]:
-            if math.hypot(box.rect.centerx - pos[0], box.rect.centery - pos[1]) < radius: damage_box(box)
-    else:
-        for box in gs["boxes"][:]:
-            if box.rect.collidepoint(pos) and (box.special_type != "ghost" or box.alpha > 200):
-                hit_something = True; damage_box(box); break
-
-    if not hit_something:
-        if gs["boss"] and gs["boss"].rect.collidepoint(pos): hit_something = True; handle_boss_hit()
-        elif gs["circle"] and gs["circle"].rect.collidepoint(pos): hit_something = True; handle_circle_hit()
-        elif gs["power_up"] and gs["power_up"].rect.collidepoint(pos): hit_something = True; handle_powerup_hit()
-
-    if not hit_something:
-        gs["player_sequence"].append("hit_empty")
-        is_inv = "INVINCIBILITY" in gs["active_cheats"] or "SHIELD_POWERUP" in gs["active_cheats"]
-        if not is_inv and not (gs["barrier"] and gs["barrier"].rect.collidepoint(pos)): gs["lives"] -= 1
-        gs["combo"] = 0
-
-    if gs["lives"] <= 0: gs["game_state"] = "game_over"; save_high_scores()
-    if len(gs["player_sequence"]) > 10: gs["player_sequence"].pop(0)
-    check_cheat_code()
-
-def damage_box(box, is_black_hole=False, damage=None):
-    if not is_black_hole:
-        gs["player_sequence"].append("hit_box")
-        if box.special_type == "multi":
-            if box.tap_timer == 0 or time.time() - box.tap_timer > 1: box.tap_timer, box.tap_count = time.time(), 1
-            else: box.tap_count += 1
-            if box.tap_count >= box.taps_required: box.health, gs["score"] = 0, gs["score"] + 20 * gs["score_multiplier"]
-        else:
-            base_damage = gs["upgrades"]["damage"] + 1
-            damage_dealt = gs["equipped_tool"].damage * base_damage if "INSTANT_KILL" not in gs["active_cheats"] else box.max_health
-            box.health -= damage_dealt
-    else:
-        box.health -= damage if damage is not None else 999
+    for box in gs["boxes"][:]:
+        if box.rect.collidepoint(pos):
+            if gs.get("stealth_mode_active"): box.fade_timer = time.time()
+            damage_box(box)
+            hit_something = True; break
+            
+    if not hit_something and gs.get("boss") and gs["boss"].rect.collidepoint(pos):
+        gs["boss"].health -= (gs.get("equipped_tool").damage + gs["upgrades"]["damage"])
+        if gs["boss"].health <= 0: gs["boss"] = None
+        hit_something = True
     
-    if gs["debug_mode"]: handle_dev_tool_effects(box)
+    if not hit_something: gs["lives"] -= 1
+    if gs["lives"] <= 0: save_high_scores(); gs["game_state"] = "game_over"
+
+def damage_box(box):
+    if box.special_type == "dramatic" and box.dramatic_death_timer == 0:
+        box.start_dramatic_death()
+        return
+
+    box.health -= (gs.get("equipped_tool").damage + gs["upgrades"]["damage"])
     if box.health <= 0:
-        create_explosion(box.rect.centerx, box.rect.centery, box.color)
-        if box.special_type == "explosive":
-            for b in gs["boxes"][:]:
-                if b != box: b.health = 0
-            if "INVINCIBILITY" not in gs["active_cheats"]: gs["lives"] -= 1
-            trigger_screen_shake()
-        if box.special_type == "golden": gs["score"] += 500
         if box in gs["boxes"]: gs["boxes"].remove(box)
+        create_explosion(box.rect.centerx, box.rect.centery, box.color)
+        gs["score"] += 500 if box.special_type == "rainbow" else 100
+        gs["cosmic_dust"] += 1
+        gs["stats"]["total_boxes"] += 1
         
-        diff_mods = DIFFICULTY_SETTINGS[gs["difficulty"]]
-        dust_bonus = 1 + (gs["upgrades"]["dust_bonus"] * 0.2)
-        gs["cosmic_dust"] += int(1 * dust_bonus * diff_mods["dust_mod"])
-        gs["score"] += (10 * gs["score_multiplier"] * (1 + gs["combo"] * 0.5)) * diff_mods["score_mod"]
-        gs["combo"] += 1
-        gs["combo_timer"] = time.time()
-
-def handle_boss_hit():
-    gs["player_sequence"].append("hit_box")
-    if random.random() > gs["boss"].dodge_chance:
-        damage = (gs["equipped_tool"].damage + gs["upgrades"]["damage"]) if "INSTANT_KILL" not in gs["active_cheats"] else gs["boss"].max_health
-        gs["boss"].health -= damage
-        if gs["boss"].health <= 0:
-            gs["score"] += 50 * gs["score_multiplier"] * (1 + gs["combo"] * 0.5)
-            gs["boss"] = None
-            gs["game_state"], gs["level_clear_timer"] = "level_clear", time.time()
-        else:
-            gs["boss"].update_phase()
-    else:
-        print(f"{XTERM_BLUE}Boss dodged!{XTERM_RESET}")
-
-def handle_circle_hit():
-    gs["lives"] = min(gs["lives"] + 1, gs["max_lives"] + 1)
-    gs["max_lives"] += 1
-    gs["score"] += 100 * gs["score_multiplier"] * (1 + gs["combo"] * 0.5)
-    gs["circle"] = None
-
-def handle_powerup_hit():
-    gs["power_up_active"] = gs["power_up"].type
-    gs["power_up_timer"] = time.time()
-    if gs["power_up_active"] == "cosmic": gs["cosmic_aura_timer"] = time.time()
-    elif gs["power_up_active"] == "shield": gs["active_cheats"].add("SHIELD_POWERUP")
-    gs["power_up"] = None
-
-def handle_dev_tool_effects(box):
-    tool = gs["equipped_tool"]
-    if tool.spiral_universal_level > 0:
-        gs["spiral_effect"] = SpiralEffect(box.rect.centerx, box.rect.centery)
-        chain_range, chain_limit, chain_count = 100, tool.spiral_universal_level + (5 if gs["power_up_active"] == "cosmic" else 0), 0
-        for other_box in gs["boxes"][:]:
-            if other_box != box and math.hypot(other_box.rect.centerx - box.rect.centerx, other_box.rect.centery - box.rect.centery) <= chain_range and chain_count < chain_limit:
-                other_box.health = 0; chain_count += 1; gs["score"] += 10 * tool.score_multiplier * 5
-        print(f"{XTERM_YELLOW}Spiral Universal V: {chain_count} boxes chained!{XTERM_RESET}")
-
-def handle_keyboard_input(event):
-    if event.key == pygame.K_p:
-        if gs["game_state"] == "playing": gs["game_state"] = "paused"
-        elif gs["game_state"] == "paused": gs["game_state"] = "playing"
-    if gs["hud_active"] and gs["game_state"] == "playing":
-        if event.key == pygame.K_BACKSPACE: gs["input_level"] = gs["input_level"][:-1]
-        elif event.key == pygame.K_RETURN:
-            try:
-                new_level = int(gs["input_level"])
-                if 1 <= new_level <= MAX_LEVEL:
-                    gs["level"] = new_level; start_new_level(); gs["hud_active"] = False; gs["input_level"] = ""
-                    print(f"{XTERM_BLUE}Level set to {gs['level']}!{XTERM_RESET}")
-            except ValueError: pass
-        elif event.unicode.isdigit(): gs["input_level"] += event.unicode
-
-
-# --- Shop Logic ---
-UPGRADE_COSTS = {"damage": 20, "lives": 50, "dust_bonus": 100, "powerup_time": 75}
-UPGRADE_NAMES = {"damage": "Tap Power", "lives": "Max Lives", "dust_bonus": "Dust Bonus", "powerup_time": "Power-up Time"}
-
-def purchase_upgrade(name):
-    level = gs["upgrades"][name]
-    cost = UPGRADE_COSTS[name] * (2 ** level)
-    if gs["cosmic_dust"] >= cost:
-        gs["cosmic_dust"] -= cost
-        gs["upgrades"][name] += 1
-        if name == "lives":
-            gs["max_lives"] += 1
-            gs["lives"] += 1
-        print(f"Purchased {UPGRADE_NAMES[name]} Level {gs['upgrades'][name]}")
+        if box.special_type == "splitter":
+            for _ in range(2):
+                new_size = int(box.original_width * 0.6)
+                new_box = Box(box.rect.centerx, box.rect.centery, new_size, new_size, COSMIC_MAGENTA, 1)
+                new_box.speed *= 1.5
+                gs["boxes"].append(new_box)
 
 
 # MAIN GAME SETUP & LOOP
-hud_buttons = {
-    "hud": Button(10, 10, 100, 40, "HUD", STARLIGHT_CYAN, WHITE, NEBULA_PURPLE),
-    "reset": Button(120, 10, 100, 40, "Menu", GRAY, WHITE, DARK_GRAY),
-    "debug": Button(230, 10, 100, 40, "Debug", COSMIC_MAGENTA, WHITE, NEBULA_PURPLE),
-    "high_scores": Button(340, 10, 100, 40, "Scores", AURORA_GREEN, WHITE, NEBULA_PURPLE),
-}
-reset_button = Button(0, 0, 200, 60, "To Menu", GRAY, WHITE, DARK_GRAY); reset_button.rect.center = (WIDTH//2, HEIGHT//2 + 120)
-continue_button = Button(0, 0, 200, 60, "Continue", GRAY, WHITE, DARK_GRAY); continue_button.rect.center = (WIDTH//2, HEIGHT//2 + 150)
-exit_button = Button(0, 0, 200, 60, "Exit", GRAY, WHITE, DARK_GRAY); exit_button.rect.center = (WIDTH//2, HEIGHT//2 + 250)
-start_button = Button(WIDTH // 2 - 100, HEIGHT // 2, 200, 60, "Start Game", AURORA_GREEN, WHITE, NEBULA_PURPLE)
-quit_button = Button(WIDTH // 2 - 100, HEIGHT // 2 + 80, 200, 60, "Quit", GRAY, WHITE, DARK_GRAY)
+def create_buttons():
+    w, h = pygame.display.get_surface().get_size()
+    global main_menu_buttons, mode_buttons, pause_buttons, reset_button, back_button
+    main_menu_buttons = [
+        Button(w//2-150, h//2-80, 300, 60, "Play Game", AURORA_GREEN, WHITE, NEBULA_PURPLE),
+        Button(w//2-150, h//2, 300, 60, "Stats", STARLIGHT_CYAN, WHITE, NEBULA_PURPLE),
+        Button(w//2-150, h//2+80, 300, 60, "Quit", GRAY, WHITE, DARK_GRAY) ]
+    mode_buttons = [
+        Button(w//2-200, 200, 400, 50, "Classic", YELLOW, WHITE, NEBULA_PURPLE, "The standard, focused experience."),
+        Button(w//2-200, 270, 400, 50, "Chaos Mode", RED, WHITE, NEBULA_PURPLE, "Pure mayhem. Not for the faint of heart."),
+        Button(w//2-200, 340, 400, 50, "Stealth Mode", GALAXY_INDIGO, WHITE, NEBULA_PURPLE, "Boxes are nearly invisible."),
+        Button(w//2-200, 410, 400, 50, "Boss Rush", COSMIC_MAGENTA, WHITE, NEBULA_PURPLE, "Face an endless stream of bosses."),
+        Button(w//2-200, 550, 400, 50, "Back", GRAY, WHITE, DARK_GRAY) ]
+    pause_buttons = [
+        Button(w//2-150, h//2-100, 300, 60, "Resume", AURORA_GREEN, WHITE),
+        Button(w//2-150, h//2, 300, 60, "Shop", STARLIGHT_CYAN, WHITE),
+        Button(w//2-150, h//2+100, 300, 60, "Main Menu", GRAY, WHITE) ]
+    reset_button = Button(w//2-150, h//2+100, 300, 60, "Back to Menu", GRAY, WHITE)
+    back_button = Button(w//2-150, h-100, 300, 60, "Back", GRAY, WHITE, DARK_GRAY)
 
-resume_button = Button(WIDTH//2-150, HEIGHT//2 - 100, 300, 60, "Resume", AURORA_GREEN, WHITE, NEBULA_PURPLE)
-shop_button = Button(WIDTH//2-150, HEIGHT//2, 300, 60, "Shop", STARLIGHT_CYAN, WHITE, NEBULA_PURPLE)
-main_menu_button = Button(WIDTH//2-150, HEIGHT//2 + 100, 300, 60, "Main Menu", GRAY, WHITE, DARK_GRAY)
-back_button = Button(WIDTH//2-150, HEIGHT - 100, 300, 60, "Back", GRAY, WHITE, DARK_GRAY)
-shop_buttons = {
-    "damage": Button(WIDTH//2-250, 200, 500, 60, "", AURORA_GREEN, WHITE, NEBULA_PURPLE),
-    "lives": Button(WIDTH//2-250, 280, 500, 60, "", STARLIGHT_CYAN, WHITE, NEBULA_PURPLE),
-    "dust_bonus": Button(WIDTH//2-250, 360, 500, 60, "", GOLD, BLACK, NEBULA_PURPLE),
-    "powerup_time": Button(WIDTH//2-250, 440, 500, 60, "", COSMIC_MAGENTA, WHITE, NEBULA_PURPLE),
-}
-
-difficulty_names = ["Tutorial", "Easy", "Beginner", "Casual", "Hardcore", "Insane", "Demon"]
-difficulty_buttons = []
-for i, name in enumerate(difficulty_names):
-    y_pos = 180 + i * 70
-    color = [STARLIGHT_CYAN, AURORA_GREEN, AURORA_GREEN, YELLOW, RED, COSMIC_MAGENTA, NEBULA_PURPLE][i]
-    btn = Button(WIDTH // 2 - 150, y_pos, 300, 60, name, color, WHITE, NEBULA_PURPLE)
-    difficulty_buttons.append(btn)
-back_to_menu_button = Button(WIDTH // 2 - 150, 180 + 7 * 70, 300, 60, "Back", GRAY, WHITE, DARK_GRAY)
-
-gs = setup_game_variables()
-
-def reset_game_state(difficulty):
+def reset_game_state(difficulty, mode):
     global gs
-    old_upgrades = gs["upgrades"]
-    old_high_scores = gs["high_scores"]
-    gs = setup_game_variables(difficulty)
-    gs["upgrades"] = old_upgrades
-    gs["high_scores"] = old_high_scores
-    gs["max_lives"] += gs["upgrades"]["lives"]
+    save_stats()
+    
+    # Start with a fresh game state dictionary
+    gs = {
+        "difficulty": difficulty, "game_mode_name": mode,
+        "level": 1, "score": 0, "score_multiplier": 1,
+        "boxes": [], "asteroids": [], "boss": None, "power_up": None,
+        "power_up_active": None, "power_up_timer": 0, "combo": 0, "combo_timer": 0,
+        "hud_active": True, "debug_mode": False, "player_sequence": [],
+        "particles": [], "cosmic_dust": 0, "screen_shake": 0, "level_clear_timer": 0,
+        "active_nyan": None, "active_snail": None, "meteor_shower_timer": 0,
+        "chaos_event_timer": 0, "screen_flipped": False, "gravity_reversed": False,
+        "box_colors": [NEBULA_BLUE, NEBULA_PURPLE, GALAXY_INDIGO, STARLIGHT_CYAN, COSMIC_MAGENTA, AURORA_GREEN, RED],
+    }
+    
+    # Carry over persistent data
+    gs.update({
+        "stars": persistent_data["stars"], "high_scores": persistent_data["high_scores"],
+        "stats": persistent_data["stats"], "upgrades": persistent_data["upgrades"]
+    })
+
+    # Set up tools
+    gs["basic_tapper"] = Tool("basic_tapper", 1, 1, 1, False)
+    gs["cheat_tapper"] = Tool("cheat_tapper", 99, 999999, 1000, True)
+    gs["equipped_tool"] = gs["basic_tapper"]
+    
+    # Set lives based on mode and upgrades
+    lives = DIFFICULTY_SETTINGS.get(difficulty, {}).get("lives", 10)
+    if mode == "boss_rush": lives = 3
+    gs["max_lives"] = lives + gs["upgrades"]["lives"]
     gs["lives"] = gs["max_lives"]
-    gs["game_state"] = "playing"
+    
+    # CONFIGURE GAME MODE ONCE
+    config = GAME_MODES.get(mode, GAME_MODES["classic"])
+    for key, value in config.items():
+        gs[key.replace("logic", "_logic")] = value # Ensure correct key names
+    
     start_new_level()
 
-spawn_stars()
-running = True
+# --- Main Execution ---
+gs = setup_game_variables()
+# Keep persistent data separate so it can be carried over
+persistent_data = {
+    "stars": gs["stars"], "high_scores": gs["high_scores"],
+    "stats": gs["stats"], "upgrades": gs["upgrades"]
+}
+create_buttons()
 
+running = True
 while running:
     handle_input()
-    update_game_state()
+    if gs.get("game_state") == "playing":
+        update_game_state()
     draw_elements()
     clock.tick(FPS)
 
