@@ -55,7 +55,7 @@ A cosmic-themed, fast-paced arcade clicker game powered by Python and Pygame. **
 
 ## 🗝️ Cheat Codes
 
-Unlock cheat codes by entering special tap sequences (mixes of box and empty clicks). Discover **INVINCIBILITY**, **INSTANT KILL**, **DOUBLE SCORE**, **LEVEL SKIP**, and **Super HUD**!
+Unlock cheat codes by entering special tap sequences (mixes of box and empty clicks). Discover **INVINCIBILITY**, **INSTANT KILL**, **DOUBLE SCORE**, **LEVEL SKIP**, and **SUPER HUD**!
 
 ---
 
