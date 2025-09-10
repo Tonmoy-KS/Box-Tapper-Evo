@@ -69,7 +69,7 @@ A cosmic-themed, arcade tapper built with Python and Pygame. **Box Tapper: Evolu
 
 ## 🗝️ Cheat Codes
 
-Unlock cheat codes by entering special tap sequences (mixes of box and empty clicks). Discover **INVINCIBILITY**, **INSTANT KILL**, **DOUBLE SCORE**, **LEVEL SKIP**, **HUD TOGGLE**, and **DEBUG MODE**!
+Unlock cheat codes by entering special tap sequences (mixes of box and empty clicks). Discover **INVINCIBILITY**, **INSTANT KILL**, **DOUBLE SCORE**, **LEVEL SKIP**, **SUPER HUD**, and **DEBUG MODE**!
 
 ---
 
