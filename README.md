@@ -23,8 +23,7 @@ Welcome to **Box Tapper: Evolution** — a cosmic-themed, fast-paced arcade game
 3. **Defeat Bosses:** Click quickly to reduce their health while dodging dodge phases and minions.
 4. **Grab Power-Ups:** Click power-up squares to activate bonuses.
 5. **Survive & Score:** Keep an eye on your lives, combo meter, and score to climb the leaderboard.
-6. **Level Selection:** Use the HUD to jump to specific levels (press numbers and Enter).
-7. **Pause:** Press `P` to pause the game.
+6. **Pause:** Press `P` to pause the game.
 
 ## 🧑‍💻 Controls
 
