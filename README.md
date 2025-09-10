@@ -65,7 +65,9 @@ Hidden cheat codes can be unlocked by entering specific tap sequences (mixing bo
 
 ## 🏆 Credits
 
-All code, design, and concept art by **Tonmoy KS**.  
+All code, design, and concept art by **Tonmoy KS**. 
+Contribute and notify to get your name here too!
+ 
 Thank you for playing Box Tapper: Evolution!
 
 ---
