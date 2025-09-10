@@ -54,15 +54,27 @@ CHEAT_SEQUENCES = {
 
 # INITIALIZATION
 pygame.init()
+pygame.mixer.init()
 os.environ['SDL_VIDEO_CENTERED'] = '1'
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
-pygame.display.set_caption("Box Tapper: Evolution")
+pygame.display.set_caption("Box Tapper: Evolution V.1.8.0")
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
 big_font = pygame.font.Font(None, 72)
 button_font = pygame.font.Font(None, 48)
 tutorial_font = pygame.font.Font(None, 42)
 stats_font = pygame.font.Font(None, 48)
+
+# --- Music 
+(Fully User Customizable Background Music) ---
+music_loaded = False  # Flag to check if music is ready
+try:
+pygame.mixer.music.load("background_music.wav")
+    music_loaded = True  # Set flag to True on success
+    print("Music file 'background_music.wav' loaded successfully.")
+except pygame.error as e:
+    # If the file is not found or there's another error, print a warning
+    print(f"Warning: Could not load 'background_music.wav'. The game will be silent. Error: {e}")
 
 # --- Difficulty Settings ---
 DIFFICULTY_SETTINGS = {
@@ -1074,6 +1086,10 @@ def reset_game_state(difficulty, game_mode):
 
 spawn_stars()
 running = True
+
+if music_loaded:
+    pygame.mixer.music.play(loops=-1) # The -1 makes the music loop forever
+
 while running:
     handle_input()
     update_game_state()
