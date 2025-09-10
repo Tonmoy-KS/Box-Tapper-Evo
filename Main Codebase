@@ -41,7 +41,7 @@ MAX_HIGH_SCORES = 5
 MAX_LEVEL_CLASSIC = 100
 ASTEROID_START_LEVEL = 30
 
-# --- Cheats ---
+# --- Cheat Codes---
 CHEAT_SEQUENCES = {
     "INVINCIBILITY": ["hit_box", "hit_empty", "hit_box", "hit_box", "hit_empty", "hit_empty", "hit_box", "hit_box", "hit_empty"],
     "INSTANT_KILL": ["hit_box", "hit_box", "hit_empty", "hit_empty", "hit_box", "hit_box", "hit_box", "hit_empty", "hit_empty", "hit_box"],
@@ -66,15 +66,15 @@ stats_font = pygame.font.Font(None, 48)
 
 # --- Difficulty Settings ---
 DIFFICULTY_SETTINGS = {
-    "easy":       {"lives": 20, "health_mod": 0.5, "speed_mod": 0.7, "spawn_mod": 0.8, "asteroid_mod": 0.5, "score_mod": 0.75, "dust_mod": 1.5},
-    "beginner":   {"lives": 15, "health_mod": 0.8, "speed_mod": 0.9, "spawn_mod": 0.9, "asteroid_mod": 0.8, "score_mod": 0.9,  "dust_mod": 1.2},
+    "easy":       {"lives": 100, "health_mod": 0.1, "speed_mod": 0.7, "spawn_mod": 0.5, "asteroid_mod": 0.1, "score_mod": 0.0, "dust_mod": 1.5},
+    "beginner":   {"lives": 30, "health_mod": 0.8, "speed_mod": 0.9, "spawn_mod": 0.9, "asteroid_mod": 0.8, "score_mod": 0.75,  "dust_mod": 1.2},
     "casual":     {"lives": 10, "health_mod": 1.0, "speed_mod": 1.0, "spawn_mod": 1.0, "asteroid_mod": 1.0, "score_mod": 1.0,  "dust_mod": 1.0},
     "hardcore":   {"lives": 5,  "health_mod": 1.5, "speed_mod": 1.2, "spawn_mod": 1.2, "asteroid_mod": 1.3, "score_mod": 1.25, "dust_mod": 1.25},
-    "insane":     {"lives": 3,  "health_mod": 2.0, "speed_mod": 1.5, "spawn_mod": 1.5, "asteroid_mod": 1.6, "score_mod": 1.5,  "dust_mod": 1.5},
-    "demon":      {"lives": 1,  "health_mod": 3.0, "speed_mod": 2.0, "spawn_mod": 2.0, "asteroid_mod": 2.0, "score_mod": 2.0,  "dust_mod": 2.0},
+    "insane":     {"lives": 3,  "health_mod": 2.0, "speed_mod": 1.5, "spawn_mod": 1.5, "asteroid_mod": 2.0, "score_mod": 2.0,  "dust_mod": 1.5},
+    "demon":      {"lives": 1,  "health_mod": 3.0, "speed_mod": 2.0, "spawn_mod": 2.0, "asteroid_mod": 2.0, "score_mod": 20.0,  "dust_mod": 2.0},
 }
 
-DRAMATIC_QUOTES = ["Et tu, Brute?", "I'm melting!", "Rosebud...", "Tell my story!", "What's in the box?!", "I've seen things...", "Farewell, cruel world!"]
+DRAMATIC_QUOTES = ["Et tu, Brute?", "I'm melting!", "I am just in a Game!" "Rosebud...", "Tell my story!", "What's in the box?!", "I've seen things...", "Who am I? who created this?", "Farewell, cruel world!"]
 
 # CLASSES
 
@@ -327,13 +327,13 @@ class Box:
         if self.special_type == "multi":
             taps_text = font.render(f"{self.tap_count}/{self.taps_required}", True, BLACK)
             surface.blit(taps_text, taps_text.get_rect(center=self.rect.center))
-            
+
         if self.is_dying:
             quote_surf = font.render(self.death_quote, True, WHITE)
             surface.blit(quote_surf, quote_surf.get_rect(midbottom=self.rect.midtop))
 
 class Boss(Box):
-    """A powerful enemy that appears every 5 levels."""
+    """A powerful enemy."""
     def __init__(self, x, y, width, height, color, health):
         super().__init__(x, y, width, height, color, health)
         self.dodge_chance = 0.3
@@ -543,7 +543,7 @@ def activate_cheat(name):
 # TUTORIAL
 def start_tutorial():
     gs["game_state"], gs["tutorial_stage"], gs["tutorial_objects"] = "tutorial", 0, []
-    gs["tutorial_text"] = "Welcome! Click the stationary box to destroy it."
+    gs["tutorial_text"] = "Welcome to the 'Simple Tutorial' Centre! Click the stationary box to destroy it."
     box = Box(WIDTH//2-50, HEIGHT//2-50, 100, 100, STARLIGHT_CYAN, 1)
     box.speed = 0
     gs["tutorial_objects"].append(box)
@@ -587,7 +587,7 @@ def update_game_state():
             gs["level"] += 1
             start_new_level()
         return
-        
+
     if state != "playing":
         return
 
@@ -654,7 +654,7 @@ def draw_elements():
 
     if gs["screen_flipped"]:
         surface_to_draw_on = pygame.transform.flip(surface_to_draw_on, False, True)
-    
+
     if gs["screen_shake"] > 0:
         gs["screen_shake"] -= 1
         offset = (random.randint(-gs["shake_intensity"], gs["shake_intensity"]), random.randint(-gs["shake_intensity"], gs["shake_intensity"]))
@@ -780,7 +780,7 @@ def draw_victory_screen(surface):
 
 def draw_credits_screen(surface):
     draw_screen_overlay(surface, "")
-    credits_lines = ["ENDGAME CREDITS", "CODER: TONMOY KS", "DESIGNER: TONMOY KS", "LEAD DEVELOPER: TONMOY KS", "TASK MANAGER: TONMOY KS", "CONCEPT ARTIST: TONMOY KS", "PUBLISHER: TONMOY KS", "", "THE END"]
+    credits_lines = ["ENDGAME CREDITS", "DESIGNER: TONMOY KS", "TASK MANAGER: TONMOY KS", "CONCEPT ARTIST: TONMOY KS", "PUBLISHER: TONMOY KS", "", "THE END"]
     for i, line in enumerate(credits_lines):
         text = font.render(line, True, WHITE)
         surface.blit(text, text.get_rect(center=(WIDTH//2, HEIGHT//2 - 150 + i*40)))
@@ -895,7 +895,7 @@ def handle_gameplay_click(pos):
             hit_something = True
             break
     if hit_something: return
-    
+
     if gs["power_up_active"] == "multi_tap":
         hit_something = True
         radius = 75
@@ -908,7 +908,7 @@ def handle_gameplay_click(pos):
                 hit_something = True
                 damage_box(box)
                 break
-    
+
     if not hit_something:
         if gs["boss"] and gs["boss"].rect.collidepoint(pos): hit_something = True; handle_boss_hit()
         elif gs["circle"] and gs["circle"].rect.collidepoint(pos): hit_something = True; handle_circle_hit()
@@ -925,7 +925,7 @@ def handle_gameplay_click(pos):
         gs["game_state"] = "game_over"
         save_high_scores()
         save_stats()
-    
+
     if len(gs["player_sequence"]) > 10:
         gs["player_sequence"].pop(0)
 
@@ -947,7 +947,7 @@ def damage_box(box, is_black_hole=False):
             box.health -= damage_dealt
     else:
         box.health = 0
-    
+
     if box.health <= 0:
         if box.special_type == "dramatic":
             box.is_dying, box.death_timer, box.death_quote, box.speed = True, time.time() + 2, random.choice(DRAMATIC_QUOTES), 0
@@ -955,7 +955,7 @@ def damage_box(box, is_black_hole=False):
 
         gs["stats"]["boxes_tapped"] += 1
         create_explosion(box.rect.centerx, box.rect.centery, box.color)
-        
+
         if box.special_type == "splitter":
             for _ in range(2):
                 new_size = max(20, int(box.rect.width * 0.7))
@@ -972,7 +972,7 @@ def damage_box(box, is_black_hole=False):
         if box.special_type == "golden": gs["score"] += 500
         if box.special_type == "rainbow": gs["score"] += 1000
         if box in gs["boxes"]: gs["boxes"].remove(box)
-        
+
         diff_mods = DIFFICULTY_SETTINGS[gs["difficulty"]]
         dust_bonus = 1 + (gs["upgrades"]["dust_bonus"] * 0.2)
         gs["cosmic_dust"] += int(1 * dust_bonus * diff_mods["dust_mod"])
