@@ -344,7 +344,7 @@ def setup_game_variables():
     }
     # --- Tools ---
     state["basic_tapper"] = Tool("basic_tapper", 1, 1, 1, 0, 0, False)
-    state["ban_tapper"] = Tool("ban_tapper", 99, 999999, 1000, 5, 5, True)
+    state["cheat_tapper"] = Tool("cheat_tapper", 99, 999999, 1000, 5, 5, True)
     state["equipped_tool"] = state["basic_tapper"]
     return state
 
@@ -462,7 +462,7 @@ def activate_cheat(name):
     elif name == "DEBUG_MODE":
         gs["debug_mode"] = not gs["debug_mode"]
         if gs["debug_mode"]:
-            gs["equipped_tool"] = gs["ban_tapper"]
+            gs["equipped_tool"] = gs["cheat_tapper"]
             print(f"{XTERM_BLUE}Debug mode ON!{XTERM_RESET}")
         else:
             gs["equipped_tool"] = gs["basic_tapper"]
@@ -938,3 +938,4 @@ while running:
     clock.tick(FPS)
 
 pygame.quit()
+
